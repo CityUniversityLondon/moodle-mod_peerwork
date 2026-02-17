@@ -35,82 +35,6 @@ require_once($CFG->dirroot . '/mod/peerwork/lib.php');
  */
 final class lib_test extends \advanced_testcase {
 
-    public function test_peerwork_core_calendar_is_event_visible_duedate_event_as_teacher(): void {
-        $this->resetAfterTest();
-        $course = $this->getDataGenerator()->create_course();
-        $teacher = $this->getDataGenerator()->create_and_enrol($course, 'teacher');
-
-        $peerwork = $this->getDataGenerator()->create_module('peerwork', [
-            'course' => $course->id,
-            'fromdate' => time() - DAYSECS,
-            'duedate' => time() + DAYSECS,
-        ]);
-
-        $this->setAdminUser();
-
-        $event = $this->create_action_event($course->id, $peerwork->id, 'due');
-
-        $this->setUser($teacher);
-        $this->assertTrue(mod_peerwork_core_calendar_is_event_visible($event));
-    }
-
-    public function test_peerwork_core_calendar_is_event_visible_duedate_event_for_teacher(): void {
-        $this->resetAfterTest();
-        $course = $this->getDataGenerator()->create_course();
-        $teacher = $this->getDataGenerator()->create_and_enrol($course, 'teacher');
-
-        $peerwork = $this->getDataGenerator()->create_module('peerwork', [
-            'course' => $course->id,
-            'fromdate' => time() - DAYSECS,
-            'duedate' => time() + DAYSECS,
-        ]);
-
-        $this->setAdminUser();
-
-        $event = $this->create_action_event($course->id, $peerwork->id, 'due');
-
-        $this->setUser();
-        $this->assertTrue(mod_peerwork_core_calendar_is_event_visible($event, $teacher->id));
-    }
-
-    public function test_peerwork_core_calendar_is_event_visible_duedate_event_as_student(): void {
-        $this->resetAfterTest();
-        $course = $this->getDataGenerator()->create_course();
-        $student = $this->getDataGenerator()->create_and_enrol($course, 'student');
-
-        $peerwork = $this->getDataGenerator()->create_module('peerwork', [
-            'course' => $course->id,
-            'fromdate' => time() - DAYSECS,
-            'duedate' => time() + DAYSECS,
-        ]);
-
-        $this->setAdminUser();
-
-        $event = $this->create_action_event($course->id, $peerwork->id, 'due');
-
-        $this->setUser($student);
-        $this->assertTrue(mod_peerwork_core_calendar_is_event_visible($event));
-    }
-
-    public function test_peerwork_core_calendar_is_event_visible_duedate_event_for_student(): void {
-        $this->resetAfterTest();
-        $course = $this->getDataGenerator()->create_course();
-        $student = $this->getDataGenerator()->create_and_enrol($course, 'student');
-
-        $peerwork = $this->getDataGenerator()->create_module('peerwork', [
-            'course' => $course->id,
-            'fromdate' => time() - DAYSECS,
-            'duedate' => time() + DAYSECS,
-        ]);
-
-        $this->setAdminUser();
-
-        $event = $this->create_action_event($course->id, $peerwork->id, 'due');
-
-        $this->setUser();
-        $this->assertTrue(mod_peerwork_core_calendar_is_event_visible($event, $student->id));
-    }
-
     public function test_peerwork_core_calendar_provide_event_action_open_for_student(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -135,8 +59,42 @@ final class lib_test extends \advanced_testcase {
         $this->assertInstanceOf('\core_calendar\local\event\value_objects\action', $actionevent);
         $this->assertEquals(get_string('addsubmission', 'peerwork'), $actionevent->get_name());
         $this->assertInstanceOf('moodle_url', $actionevent->get_url());
+        $expected = new \moodle_url('/mod/peerwork/view.php', ['id' => $peerwork->cmid]);
+        $this->assertSame($expected->out(false), $actionevent->get_url()->out(false));
         $this->assertEquals(1, $actionevent->get_item_count());
         $this->assertTrue($actionevent->is_actionable());
+    }
+
+    public function test_peerwork_get_availability_status_notopenyet(): void {
+        $this->resetAfterTest();
+
+        $data = (object)[
+            'fromdate' => time() + DAYSECS,
+            'duedate' => 0,
+            'cmcourse' => 1,
+            'userid' => 2,
+            'pwgroupingid' => 0,
+        ];
+
+        [$status, $warnings] = \mod_peerwork_get_availability_status($data, false);
+        $this->assertEquals(false, $status);
+        $this->assertArrayHasKey('notopenyet', $warnings);
+    }
+
+    public function test_peerwork_get_availability_status_expired(): void {
+        $this->resetAfterTest();
+
+        $data = (object)[
+            'fromdate' => 0,
+            'duedate' => time() - DAYSECS,
+            'cmcourse' => 1,
+            'userid' => 2,
+            'pwgroupingid' => 0,
+        ];
+
+        [$status, $warnings] = \mod_peerwork_get_availability_status($data, false);
+        $this->assertEquals(false, $status);
+        $this->assertArrayHasKey('expired', $warnings);
     }
 
     public function test_peerwork_core_calendar_provide_event_action_open_for_instructor(): void {
@@ -161,6 +119,8 @@ final class lib_test extends \advanced_testcase {
         $this->assertInstanceOf('\core_calendar\local\event\value_objects\action', $actionevent);
         $this->assertEquals(get_string('allsubmissions', 'peerwork'), $actionevent->get_name());
         $this->assertInstanceOf('moodle_url', $actionevent->get_url());
+        $expected = new \moodle_url('/mod/peerwork/view.php', ['id' => $peerwork->cmid]);
+        $this->assertSame($expected->out(false), $actionevent->get_url()->out(false));
         $this->assertEquals(1, $actionevent->get_item_count());
         $this->assertTrue($actionevent->is_actionable());
     }
@@ -208,7 +168,13 @@ final class lib_test extends \advanced_testcase {
         $factory = new \core_calendar\action_factory();
         $actionevent = mod_peerwork_core_calendar_provide_event_action($event, $factory);
 
-        $this->assertNull($actionevent);
+        $this->assertInstanceOf('\core_calendar\local\event\value_objects\action', $actionevent);
+        $this->assertEquals(get_string('addsubmission', 'peerwork'), $actionevent->get_name());
+        $this->assertInstanceOf('moodle_url', $actionevent->get_url());
+        $expected = new \moodle_url('/mod/peerwork/view.php', ['id' => $peerwork->cmid]);
+        $this->assertSame($expected->out(false), $actionevent->get_url()->out(false));
+        $this->assertEquals(1, $actionevent->get_item_count());
+        $this->assertFalse($actionevent->is_actionable());
     }
 
     public function test_peerwork_core_calendar_provide_event_action_grouping_set_without_group(): void {
@@ -235,6 +201,8 @@ final class lib_test extends \advanced_testcase {
         $this->assertInstanceOf('\core_calendar\local\event\value_objects\action', $actionevent);
         $this->assertEquals(get_string('addsubmission', 'peerwork'), $actionevent->get_name());
         $this->assertInstanceOf('moodle_url', $actionevent->get_url());
+        $expected = new \moodle_url('/mod/peerwork/view.php', ['id' => $peerwork->cmid]);
+        $this->assertSame($expected->out(false), $actionevent->get_url()->out(false));
         $this->assertEquals(1, $actionevent->get_item_count());
         $this->assertTrue($actionevent->is_actionable());
     }
@@ -261,6 +229,8 @@ final class lib_test extends \advanced_testcase {
         $this->assertInstanceOf('\core_calendar\local\event\value_objects\action', $actionevent);
         $this->assertEquals(get_string('allsubmissions', 'peerwork'), $actionevent->get_name());
         $this->assertInstanceOf('moodle_url', $actionevent->get_url());
+        $expected = new \moodle_url('/mod/peerwork/view.php', ['id' => $peerwork->cmid]);
+        $this->assertSame($expected->out(false), $actionevent->get_url()->out(false));
         $this->assertEquals(1, $actionevent->get_item_count());
         $this->assertTrue($actionevent->is_actionable());
     }

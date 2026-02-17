@@ -28,6 +28,7 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+require_once($CFG->dirroot . '/calendar/lib.php');
 require_once('locallib.php');
 
 /**
@@ -711,6 +712,15 @@ function mod_peerwork_core_calendar_provide_event_action(calendar_event $event,
             true
         );
     }
+
+    if (array_key_exists('notopenyet', $warnings)) {
+        return $factory->create_instance(
+            get_string($identifier, 'peerwork'),
+            new \moodle_url('/mod/peerwork/view.php', array('id' => $cm->id)),
+            1,
+            false
+        );
+    }
 }
 
 /**
@@ -722,8 +732,11 @@ function mod_peerwork_core_calendar_provide_event_action(calendar_event $event,
 function mod_peerwork_get_availability_status($data, $isinstructor = false) {
 
     $timenow = time();
-    if ($timenow < $data->fromdate && $timenow > $data->duedate) {
-        return [false, []];
+    if (!empty($data->fromdate) && $timenow < $data->fromdate) {
+        return [false, ['notopenyet' => userdate($data->fromdate)]];
+    }
+    if (!empty($data->duedate) && $timenow > $data->duedate) {
+        return [false, ['expired' => userdate($data->duedate)]];
     }
 
     $singlegroup = peerwork_get_mygroup($data->cmcourse, $data->userid, $groupingid = 0, false);

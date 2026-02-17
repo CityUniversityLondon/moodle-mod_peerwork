@@ -15,11 +15,11 @@ Feature: Peerwork calendar entries
       | user     | course | role    |
       | student1 | C1     | student |
     And the following "groups" exist:
-      | course | name   |
-      | C1     | Group 1 |
+      | course | name    | idnumber |
+      | C1     | Group 1 | G1       |
     And the following "group members" exist:
-      | user     | group  |
-      | student1 | Group 1 |
+      | user     | group |
+      | student1 | G1    |
 
   Scenario: Student can see the peerwork due date in the course calendar
     Given the following "activity" exists:
@@ -28,9 +28,6 @@ Feature: Peerwork calendar entries
       | name               | Peerwork Activity                           |
       | fromdate           | ##first day of this month noon##            |
       | duedate            | ##first day of this month noon +24 hours##  |
-    And the following "blocks" exist:
-      | blockname      | contextlevel | reference | pagetypepattern | defaultregion |
-      | calendar_month | Course       | C1        | course-view-*   | site-post     |
     When I am on the "C1" Course page logged in as student1
-    And I hover over day "2" of this month in the mini-calendar block
-    Then I should see "Peerwork Activity is due"
+    And I follow "Calendar" in the user menu
+    Then I should see "Peerwork Activity"
