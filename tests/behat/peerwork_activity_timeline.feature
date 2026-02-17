@@ -15,11 +15,11 @@ Feature: Students can view upcoming peerwork activities in the timeline block
       | user     | course | role    |
       | student1 | C1     | student |
     And the following "groups" exist:
-      | course | name   |
-      | C1     | Group 1 |
+      | course | name    | idnumber |
+      | C1     | Group 1 | G1       |
     And the following "group members" exist:
-      | user     | group  |
-      | student1 | Group 1 |
+      | user     | group |
+      | student1 | G1    |
 
   @javascript
   Scenario Outline: Student can view upcoming peerwork activities in the timeline block
@@ -28,7 +28,7 @@ Feature: Students can view upcoming peerwork activities in the timeline block
       | peerwork | C1     | Peerwork Past  | 1                   | <pastfrom>   | 1                  | <pastdue>    |
       | peerwork | C1     | Peerwork Future| 1                   | <futurefrom> | 1                  | <futuredue>  |
       | peerwork | C1     | Peerwork No Date | 0                 |              | 0                  |              |
-    When I log in as "student1"
+    When I am on the "Homepage" page logged in as "student1"
     Then I should not see "Peerwork Past" in the "Timeline" "block"
     And I should not see "Peerwork No Date" in the "Timeline" "block"
     And I should see "Peerwork Future" in the "Timeline" "block"
